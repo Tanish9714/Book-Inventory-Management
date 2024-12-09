@@ -1,0 +1,42 @@
+
+.swiper {
+    width: 240px;
+    height: 320px;
+  }
+  
+.swiper-slide {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 18px;
+    font-size: 22px;
+    font-weight: bold;
+    color: #fff;
+}
+  
+.banner .swiper-slide:nth-child(1n) {
+    background-image: url('book/book1.png');
+}
+  
+.banner .swiper-slide:nth-child(2n) {
+  background-image: url('book/book2.png');
+}
+  
+.banner .swiper-slide:nth-child(3n) {
+  background-image: url('book/book3.png');
+}
+  
+.banner .swiper-slide:nth-child(4n) {
+  background-image: url('book/book4.png');
+}
+  
+.banner .swiper-slide:nth-child(5n) {
+  background-image: url('book/book5.png');
+}
+  
+
+  
+.swiper-slide:nth-child(10n) {
+    background-color: rgb(54, 94, 77);
+}
+  
