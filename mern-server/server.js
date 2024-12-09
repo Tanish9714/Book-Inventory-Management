@@ -1,123 +1,96 @@
-const express = require('express')
-const app = express()
-const cors= require('cors')
-require('dotenv').config();
-const port = process.env.PORT 
+const express = require("express");
+const mongoose = require("mongoose");
+const cors = require("cors");
+require("dotenv").config();
 
-//middleware
- app.use(cors());
- app.use(express.json());
+const app = express();
+const PORT = process.env.PORT || 5000;
 
-app.get('/', (req, res) => {
-  res.send('Hello World!')
-})
-// mongodb configuration
+// Middleware
+app.use(cors());
+app.use(express.json());
 
-//GmYwHEanaAkDyH0Q
-const { MongoClient, ServerApiVersion , ObjectId } = require('mongodb');
-const uri = process.env.MONGODB_URI;
- 
- // Create a MongoClient with a MongoClientOptions object to set the Stable API version
- const client = new MongoClient(uri, {
-   serverApi: {
-     version: ServerApiVersion.v1,
-     strict: true,
-     deprecationErrors: true,
-   }
- });
- 
- async function run() {
-   try {
-     // Connect the client to the server	(optional starting in v4.7)
-     await client.connect();
+// MongoDB Connection
+mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log("MongoDB connected"))
+  .catch(err => console.log("MongoDB connection error:", err));
 
-    //create a collection of books
-    const bookCollection = client.db("BookInventory").collection("books");
+// Book Model
+const Book = mongoose.model("Book", new mongoose.Schema({
+  title: { type: String, required: true },
+  author: { type: String, required: true },
+  category: { type: String },
+  publishedYear: { type: Number },
+}));
 
-    //upload books to the collection
-    app.post("/upload-book", async(req, res) => {
-          const data = req.body;
-          const result = await bookCollection.insertOne(data);
-          res.send(result);
-    });
+// Routes
 
-    //get all books from the collection
-    app.get('all-books', async(req, res) => {
-      const books = bookCollection.find();
-      const result = await books.toArray();
-      res.send(result);
-    });
+// Get all books or filter by category
+app.get("/books", async (req, res) => {
+  const category = req.query.category;
+  const query = category ? { category } : {};
+  const books = await Book.find(query);
+  res.json(books);
+});
 
-    //update a book in the collection
-    app.patch('/book/:id', async(req, res) => {
-      const id = req.params.id;
-      const updateBookData = req.body;
-      const filter = {_id: new ObjectId(id)};
-      const options = {upsert: true};
+// Add a new book
+app.post("/books", async (req, res) => {
+  const { title, author, category, publishedYear } = req.body;
 
-      const updateDoc = {
-        $set: {
-          ...updateBookData,
-        },
-      };
+  if (!title || !author) {
+    return res.status(400).json({ message: "Title and author are required" });
+  }
 
-      const result = await bookCollection.updateOne(filter, updateDoc, options);
-      res.send(result);
-    });
+  const newBook = new Book({ title, author, category, publishedYear });
 
-    //delete a book from the collection
-    app.delete('/book/:id', async(req, res) => {
-      const id = req.params.id;
-      const filter = {_id: new ObjectId(id)};
-      const result = await bookCollection.deleteOne(filter);
-      res.send(result);
-    });
+  try {
+    const savedBook = await newBook.save();
+    res.status(201).json(savedBook);
+  } catch (error) {
+    res.status(400).json({ message: "Error adding book", error });
+  }
+});
 
-    //fing a single book from the collection
-    app.get('/book/:id', async(req, res) => {
-      const id = req.params.id;
-      const filter = {_id: new ObjectId(id)};
-      const result = await bookCollection.findOne(filter);
-      res.send(result);
+// Get a single book by ID
+app.get("/books/:id", async (req, res) => {
+  try {
+    const book = await Book.findById(req.params.id);
+    if (!book) {
+      return res.status(404).json({ message: "Book not found" });
     }
-    );
-    // app.get('/book/:id', async(req, res) => {
-    //   const id = req.params.id;
-    //   if (!ObjectId.isValid(id)) {
-    //     return res.status(400).send('Invalid book ID');
-    //   }
-    //   const filter = {_id: new ObjectId(id)};
-    //   const result = await bookCollection.findOne(filter);
-    //   if (!result) {
-    //     return res.status(404).send('Book not found');
-    //   }
-    //   res.send(result);
-    // });
-    
+    res.json(book);
+  } catch (error) {
+    res.status(400).json({ message: "Invalid book ID", error });
+  }
+});
 
-    //find by category
+// Update a book
+app.put("/books/:id", async (req, res) => {
+  try {
+    const updatedBook = await Book.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!updatedBook) {
+      return res.status(404).json({ message: "Book not found" });
+    }
+    res.json(updatedBook);
+  } catch (error) {
+    res.status(400).json({ message: "Error updating book", error });
+  }
+});
 
-    app.get('/all-books', async(req, res) => {
-      let query = {};
-      if(req.query?.category){
-        query = {category: req.query.category};
-      }
+// Delete a book
+app.delete("/books/:id", async (req, res) => {
+  try {
+    const deletedBook = await Book.findByIdAndDelete(req.params.id);
+    if (!deletedBook) {
+      return res.status(404).json({ message: "Book not found" });
+    }
+    res.status(204).send();
+  } catch (error) {
+    res.status(400).json({ message: "Error deleting book", error });
+  }
+});
 
-      const result = await bookCollection.find(query).toArray();
-      res.send(result);
-    });
-
-     // Send a ping to confirm a successful connection
-     await client.db("admin").command({ ping: 1 });
-     console.log("Pinged your deployment. You successfully connected to MongoDB!");
-   } finally {
-     // the client will close when you finish/error
-    //  await client.close();
-   }
- }
- run().catch(console.dir);
- 
-
-app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`)
-})
+// Start server
+app.listen(PORT, () => {
+  console.log(`Server is running on http://localhost:${PORT}`);
+});
